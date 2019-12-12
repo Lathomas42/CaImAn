@@ -98,7 +98,7 @@ class MotionCorrect(object):
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=[7, None],
                  upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=True, gSig_filt=None,
                  use_cuda=False, border_nan=True, pw_rigid=False, num_frames_split=80, var_name_hdf5='mov',is3D=False,
-                 indices=(slice(None), slice(None))):
+                 save_dir=None, indices=(slice(None), slice(None))):
         """
         Constructor class for motion correction operations
 
@@ -172,6 +172,9 @@ class MotionCorrect(object):
 
             indices: tuple(slice), default: (slice(None), slice(None))
                Use that to apply motion correction only on a part of the FOV
+            
+            save_dir: string, default: None
+                Directory to save movies to.
 
        Returns:
            self
@@ -206,6 +209,7 @@ class MotionCorrect(object):
         self.pw_rigid = pw_rigid
         self.var_name_hdf5 = var_name_hdf5
         self.is3D = is3D
+        self.save_dir = save_dir
         self.indices = indices
         if self.use_cuda and not HAS_CUDA:
             logging.debug("pycuda is unavailable. Falling back to default FFT.")
@@ -2988,6 +2992,8 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if save_movie:
         if base_name is None:
             base_name = os.path.split(fname)[1][:-4]
+        if self.save_dir is not None:
+            base_name = os.path.join(self.save_dir,os.path.base_name(base_name))
         fname_tot:Optional[str] = memmap_frames_filename(base_name, dims, T, order)
         fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
