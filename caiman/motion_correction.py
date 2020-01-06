@@ -2893,7 +2893,7 @@ def tile_and_correct_wrapper(params):
     except:
         pass  # 'Open CV is naturally single threaded'
 
-    img_name, out_fname, idxs, shape_mov, template, strides, overlaps, max_shifts,\
+    img_name, out_fname, start, idxs, shape_mov, template, strides, overlaps, max_shifts,\
         add_to_movie, max_deviation_rigid, upsample_factor_grid, newoverlaps, newstrides, \
         shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan, var_name_hdf5, \
         is3D, indices = params
@@ -2940,7 +2940,7 @@ def tile_and_correct_wrapper(params):
             bias = np.float32(add_to_movie)
         else:
             bias = 0
-        outv[:, idxs] = np.reshape(
+        outv[:, start:start+len(imgs)] = np.reshape(
             mc.astype(np.float32), (len(imgs), -1), order='F').T + bias
     new_temp = np.nanmean(mc, 0)
     new_temp[np.isnan(new_temp)] = np.nanmin(new_temp)
@@ -2973,12 +2973,14 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         idxs = np.array_split(list(rng), splits)
 
     else:
+        print("LAT: gonna have a problem")
         idxs = splits
         save_movie = False
     if template is None:
         raise Exception('Not implemented')
+
     
-    shape_mov = (np.prod(dims), T)
+    shape_mov = (np.prod(dims), len(rng)) # (np.prod(dims), T)
 #    if is3D:
 #        shape_mov = (d1 * d2 * d3, T)
 #    else:
@@ -3003,8 +3005,8 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         fname_tot = None
 
     pars = []
-    for idx in idxs:
-        pars.append([fname, fname_tot, idx, shape_mov, template, strides, overlaps, max_shifts, np.array(
+    for eid, idx in enumerate(idxs):
+        pars.append([fname, fname_tot, eid*len(idxs[0]), idx, shape_mov, template, strides, overlaps, max_shifts, np.array(
             add_to_movie, dtype=np.float32), max_deviation_rigid, upsample_factor_grid,
             newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji,
             use_cuda, border_nan, var_name_hdf5, is3D, indices])
