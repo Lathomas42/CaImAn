@@ -98,7 +98,7 @@ class MotionCorrect(object):
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=[7, None],
                  upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=True, gSig_filt=None,
                  use_cuda=False, border_nan=True, pw_rigid=False, num_frames_split=80, var_name_hdf5='mov',is3D=False,
-                 save_dir=None, indices=(slice(None), slice(None))):
+                 save_dir=None, indices=(slice(None), slice(None)), subidx=slice(None,None,1)):
         """
         Constructor class for motion correction operations
 
@@ -210,6 +210,7 @@ class MotionCorrect(object):
         self.var_name_hdf5 = var_name_hdf5
         self.is3D = is3D
         self.save_dir = save_dir
+        self.subidx = subidx
         self.indices = indices
         if self.use_cuda and not HAS_CUDA:
             logging.debug("pycuda is unavailable. Falling back to default FFT.")
@@ -306,7 +307,9 @@ class MotionCorrect(object):
                 border_nan=self.border_nan,
                 var_name_hdf5=self.var_name_hdf5,
                 is3D=self.is3D,
-                indices=self.indices)
+                indices=self.indices,
+                subidx = self.subidx,
+                save_dir = self.save_dir)
             if template is None:
                 self.total_template_rig = _total_template_rig
 
@@ -363,9 +366,9 @@ class MotionCorrect(object):
                     _x_shifts_els, _y_shifts_els, _z_shifts_els, _coord_shifts_els = motion_correct_batch_pwrigid(
                         name_cur, self.max_shifts, self.strides, self.overlaps, -self.min_mov,
                         dview=self.dview, upsample_factor_grid=self.upsample_factor_grid,
-                        max_deviation_rigid=self.max_deviation_rigid, splits=self.splits_els,
+                        max_deviation_rigid=self.max_deviation_rigid, splits=self.splits_els, subidx=self.subidx,
                         num_splits_to_process=num_splits_to_process, num_iter=num_iter, template=self.total_template_els,
-                        shifts_opencv=self.shifts_opencv, save_movie=save_movie, nonneg_movie=self.nonneg_movie, gSig_filt=self.gSig_filt,
+                        shifts_opencv=self.shifts_opencv, save_movie=save_movie, save_dir=self.save_dir, nonneg_movie=self.nonneg_movie, gSig_filt=self.gSig_filt,
                         use_cuda=self.use_cuda, border_nan=self.border_nan, var_name_hdf5=self.var_name_hdf5, is3D=self.is3D,
                         indices=self.indices)
                 if not self.is3D:
@@ -2601,7 +2604,7 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
 
 #%%
 def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_splits_to_process=None, num_iter=1,
-                               template=None, shifts_opencv=False, save_movie_rigid=False, add_to_movie=None,
+                               template=None, shifts_opencv=False, save_movie_rigid=False, save_dir=None, add_to_movie=None,
                                nonneg_movie=False, gSig_filt=None, subidx=slice(None, None, 1), use_cuda=False,
                                border_nan=True, var_name_hdf5='mov', is3D=False, indices=(slice(None), slice(None))):
     """
@@ -2713,7 +2716,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
         fname_tot_rig, res_rig = motion_correction_piecewise(fname, splits, strides=None, overlaps=None,
                                                              add_to_movie=add_to_movie, template=old_templ, max_shifts=max_shifts, max_deviation_rigid=0,
-                                                             dview=dview, save_movie=save_movie, base_name=os.path.split(
+                                                             dview=dview, save_movie=save_movie, save_dir=save_dir, base_name=os.path.split(
                                                                  fname)[-1][:-4] + '_rig_', subidx = subidx,
                                                              num_splits=num_splits_to_process, shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
                                                              use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5, is3D=is3D,
@@ -2744,8 +2747,8 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
 def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_movie, newoverlaps=None, newstrides=None,
                                  dview=None, upsample_factor_grid=4, max_deviation_rigid=3,
-                                 splits=56, num_splits_to_process=None, num_iter=1,
-                                 template=None, shifts_opencv=False, save_movie=False, nonneg_movie=False, gSig_filt=None,
+                                 splits=56, num_splits_to_process=None, num_iter=1, subidx=slice(None,None,1),
+                                 template=None, shifts_opencv=False, save_movie=False, save_dir=None, nonneg_movie=False, gSig_filt=None,
                                  use_cuda=False, border_nan=True, var_name_hdf5='mov', is3D=False,
                                  indices=(slice(None), slice(None))):
     """
@@ -2836,7 +2839,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         fname_tot_els, res_el = motion_correction_piecewise(fname, splits, strides, overlaps,
                                                             add_to_movie=add_to_movie, template=old_templ, max_shifts=max_shifts,
                                                             max_deviation_rigid=max_deviation_rigid,
-                                                            newoverlaps=newoverlaps, newstrides=newstrides,
+                                                            newoverlaps=newoverlaps, newstrides=newstrides, save_dir=save_dir,
                                                             upsample_factor_grid=upsample_factor_grid, order='F', dview=dview, save_movie=save_movie,
                                                             base_name=os.path.split(fname)[-1][:-4] + '_els_', num_splits=num_splits_to_process,
                                                             shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
@@ -2948,7 +2951,7 @@ def tile_and_correct_wrapper(params):
 
 def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0, template=None,
                                 max_shifts=(12, 12), max_deviation_rigid=3, newoverlaps=None, newstrides=None,
-                                upsample_factor_grid=4, order='F', dview=None, save_movie=True,
+                                upsample_factor_grid=4, order='F', dview=None, save_movie=True, save_dir=None,
                                 base_name=None, subidx = None, num_splits=None, shifts_opencv=False, nonneg_movie=False, gSig_filt=None,
                                 use_cuda=False, border_nan=True, var_name_hdf5='mov', is3D=False,
                                 indices=(slice(None), slice(None))):
@@ -2994,8 +2997,8 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if save_movie:
         if base_name is None:
             base_name = os.path.split(fname)[1][:-4]
-        if self.save_dir is not None:
-            base_name = os.path.join(self.save_dir,os.path.base_name(base_name))
+        if save_dir is not None:
+            base_name = os.path.join(save_dir,os.path.basename(base_name))
         fname_tot:Optional[str] = memmap_frames_filename(base_name, dims, T, order)
         fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
