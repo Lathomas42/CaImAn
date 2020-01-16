@@ -390,7 +390,7 @@ class MotionCorrect(object):
                 self.z_shifts_els += _z_shifts_els
             self.coord_shifts_els += _coord_shifts_els
 
-    def apply_shifts_movie(self, fname, rigid_shifts:bool=None, save_memmap:bool=False,
+    def apply_shifts_movie(self, fname, subindices=None, rigid_shifts:bool=None, save_memmap:bool=False,
                            save_base_name:str='MC', order:str='F', remove_min:bool=True):
         """
         Applies shifts found by registering one file to a different file. Useful
@@ -424,7 +424,7 @@ class MotionCorrect(object):
                 caiman movie object with applied shifts (not memory mapped)
         """
 
-        Y = cm.load(fname).astype(np.float32)
+        Y = cm.load(fname,subindices=subindices).astype(np.float32)
         if remove_min: 
             ymin = Y.min()
             if ymin < 0:
